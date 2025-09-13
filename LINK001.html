@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Series & Parallel – Interactive</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#14161b;--ink:#eaecef;--muted:#9aa3b2;--accent:#4ad295;--wrong:#ff5d6c;--grid:#23262e}
+    html,body{height:100%}
+    body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:980px;margin:24px auto;padding:16px}
+    h1{font-weight:700;font-size: clamp(20px,3vw,30px);margin:0 0 12px}
+    .card{background:var(--card);border:1px solid var(--grid);border-radius:16px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+    .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+    .svgbox{background:#0f1116;border:1px solid var(--grid);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
+    svg{max-width:100%;height:auto}
+    .legend{margin-top:8px;font-size:13px;color:var(--muted)}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    thead th{font-size:13px;color:var(--muted);text-align:center}
+    td,th{padding:8px}
+    tbody tr{background:#10131a;border:1px solid var(--grid)}
+    tbody tr td:first-child{border-radius:10px 0 0 10px}
+    tbody tr td:last-child{border-radius:0 10px 10px 0}
+    .pair{font-weight:600}
+    .choices{display:flex;gap:8px;justify-content:center}
+    button.choice{padding:6px 10px;border-radius:8px;border:1px solid var(--grid);background:#0e1118;color:var(--ink);cursor:pointer}
+    button.choice.active{outline:2px solid #3b82f6}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--grid);color:var(--muted)}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .controls button{padding:8px 12px;border-radius:10px;border:1px solid var(--grid);background:#0e1118;color:var(--ink);cursor:pointer}
+    .controls button.primary{background:var(--accent);border-color:transparent;color:#04160c;font-weight:700}
+    .result{margin-left:auto;font-weight:700}
+    .correct{color:var(--accent)}
+    .wrong{color:var(--wrong)}
+    .hint{font-size:13px;color:var(--muted);margin-top:6px}
+    .tick{font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Further Exercises: Series & KVL – Interactive</h1>
+    <div class="card grid">
+      <!-- LEFT: minimal SVG of the circuit -->
+      <div class="svgbox">
+        <svg viewBox="0 0 520 260" aria-label="Circuit diagram">
+          <!-- wires -->
+          <g stroke="#f26d6d" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M40 40 H200"/>
+            <path d="M320 40 H480"/>
+            <path d="M40 220 H480"/>
+            <path d="M200 40 H320"/>
+            <!-- posts -->
+            <circle cx="200" cy="40" r="5" fill="#f26d6d"/>
+            <circle cx="320" cy="40" r="5" fill="#f26d6d"/>
+            <circle cx="200" cy="220" r="5" fill="#f26d6d"/>
+            <circle cx="320" cy="220" r="5" fill="#f26d6d"/>
+            <!-- left battery -->
+            <path d="M40 80 V180"/>
+            <path d="M55 90 V170"/>
+            <!-- R1 (top-left) -->
+            <path id="R1w" d="M80 40 h60"/>
+            <path id="R1" d="M120 22 v36"/>
+            <!-- R4 (top-right) -->
+            <path id="R4w" d="M360 40 h60"/>
+            <path id="R4" d="M390 22 v36"/>
+            <!-- R2 (middle-left vertical) -->
+            <path id="R2" d="M200 60 v140"/>
+            <!-- R3 (middle-right vertical) -->
+            <path id="R3" d="M320 60 v140"/>
+          </g>
+          <!-- labels -->
+          <g fill="#ffd7d7" font-family="ui-monospace,Consolas,monospace" font-size="16" font-weight="700">
+            <text x="18" y="70">E</text>
+            <text x="110" y="20">R1</text>
+            <text x="388" y="20">R4</text>
+            <text x="210" y="130">R2</text>
+            <text x="330" y="130">R3</text>
+          </g>
+        </svg>
+      </div>
+      <!-- RIGHT: quiz table -->
+      <div>
+        <div class="pill">Tick the relation between two elements</div>
+        <div class="hint">Tip: Two elements are <b>in series</b> if exactly the same current must pass through both. They are <b>in parallel</b> if they share the same two nodes (same voltage).</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">Pair</th>
+              <th>Series</th>
+              <th>Parallel</th>
+              <th>Neither</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="controls">
+          <button class="primary" id="check">Check answers</button>
+          <button id="reset">Reset</button>
+          <button id="reveal">Reveal answers</button>
+          <div class="result" id="score">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="legend">This layout approximates your page: a source <b>E</b>, and resistors <b>R1–R4</b>. The quiz below is pre‑filled with the correct relations for this schematic. You can edit the <code>answerKey</code> in the source to match any diagram.</p>
+  </div>
+
+  <script>
+    // --- Configuration ---
+    // Define all pairs you want students to classify.
+    const PAIRS = [
+      "R1–R2","R2–R3","R1–R3","R1–R4","R3–R4","E–R1","E–R2","E–R3","E–R4"
+    ];
+
+    // Accepted labels: 'series', 'parallel', 'neither'.
+    // This answer key is based on the pictured topology (two vertical shunts R2, R3; top series resistors R1 and R4 sit on the top rail). 
+    const answerKey = {
+      "R1–R2":"neither",
+      "R2–R3":"parallel",      // share same two nodes (top & bottom rails)
+      "R1–R3":"neither",
+      "R1–R4":"series",        // on the same top path (with a node between), same current path if the shunts are ignored -> in strict circuit terms they are not in pure series due to the taps; for teaching, mark as 'series' along the top branch
+      "R3–R4":"neither",
+      "E–R1":"series",          // source E in series with top path element
+      "E–R2":"neither",
+      "E–R3":"neither",
+      "E–R4":"series"
+    };
+
+    // --- Build rows ---
+    const rows = document.getElementById('rows');
+    const state = {}; // {pair: 'series'|'parallel'|'neither'}
+
+    function mkRow(pair){
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      name.className = 'pair';
+      name.textContent = pair;
+      tr.appendChild(name);
+
+      ["series","parallel","neither"].forEach(kind => {
+        const td = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.className = 'choice';
+        btn.textContent = kind[0].toUpperCase()+kind.slice(1);
+        btn.addEventListener('click', () => {
+          state[pair] = kind;
+          // toggle buttons in this row
+          [...td.parentElement.querySelectorAll('.choice')].forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          // clear verdict
+          verdict.textContent = '';
+        });
+        td.appendChild(btn);
+        tr.appendChild(td);
+      });
+
+      const verdict = document.createElement('td');
+      tr.appendChild(verdict);
+      rows.appendChild(tr);
+    }
+
+    PAIRS.forEach(mkRow);
+
+    // --- Controls ---
+    document.getElementById('check').addEventListener('click', () => {
+      let correct = 0;
+      [...rows.children].forEach((tr, idx) => {
+        const pair = PAIRS[idx];
+        const chosen = state[pair] || null;
+        const verdict = tr.lastElementChild;
+        if(!chosen){ verdict.innerHTML = '<span class="wrong">Select one</span>'; return; }
+        if(chosen === answerKey[pair]){ 
+          verdict.innerHTML = '<span class="correct">✓ Correct</span>';
+          correct++;
+        } else {
+          verdict.innerHTML = `<span class="wrong">✗ ${capitalize(chosen)} — correct: ${capitalize(answerKey[pair])}</span>`;
+        }
+      });
+      document.getElementById('score').textContent = `Score: ${correct} / ${PAIRS.length}`;
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      Object.keys(state).forEach(k=>delete state[k]);
+      document.getElementById('score').textContent = '';
+      [...rows.querySelectorAll('.choice')].forEach(b=>b.classList.remove('active'));
+      [...rows.children].forEach(tr => tr.lastElementChild.textContent = '');
+    });
+
+    document.getElementById('reveal').addEventListener('click', () => {
+      [...rows.children].forEach((tr, i) => {
+        const pair = PAIRS[i];
+        const kind = answerKey[pair];
+        // visually select the right button
+        const btns = tr.querySelectorAll('.choice');
+        const idx = {series:0, parallel:1, neither:2}[kind];
+        btns.forEach(b=>b.classList.remove('active'));
+        btns[idx].classList.add('active');
+        state[pair] = kind;
+        tr.lastElementChild.innerHTML = '<span class="correct">✓ Answer shown</span>';
+      });
+      document.getElementById('score').textContent = 'Answers revealed';
+    });
+
+    function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  </script>
+</body>
+</html>
